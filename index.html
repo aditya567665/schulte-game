@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎯 Schulte Table Game - Android Style</title>
+  <link rel="icon" href="app icon.png" type="image/png">
+<img src="app icon.png" alt="Schulte Game Logo" style="width:100px; margin-top:10px;">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      transition: all 0.25s ease;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #2c3e50;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    select, button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #00b894;
+      color: white;
+      font-weight: bold;
+      font-size: 1em;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    button:hover, select:hover {
+      background: #019874;
+    }
+
+    select {
+      appearance: none;
+    }
+
+    #timer {
+      font-size: 1.3em;
+      margin-bottom: 15px;
+      color: #34495e;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 30px;
+      transform: scale(1);
+      transition: transform 0.4s ease;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: white;
+      border: 2px solid #34495e;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #2c3e50;
+      cursor: pointer;
+      transform: scale(0.7);
+      animation: pop-in 0.3s ease forwards;
+    }
+
+    .cell:hover {
+      background: #ffeaa7;
+    }
+
+    .cell.clicked {
+      background: #6c5ce7 !important;
+      color: white;
+      transform: scale(1.1) rotate(2deg);
+    }
+
+    @keyframes pop-in {
+      0% { opacity: 0; transform: scale(0.6); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    #scoreBoard {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    }
+
+    #scoreBoard h3 {
+      margin-top: 0;
+      font-size: 1.3em;
+      color: #2d3436;
+    }
+
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px dashed #ccc;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎯 Schulte Table</h1>
+
+  <div id="controls">
+    <select id="level" onchange="startGame()">
+      <option value="3">Level 1 (3x3)</option>
+      <option value="4">Level 2 (4x4)</option>
+      <option value="5" selected>Level 3 (5x5)</option>
+      <option value="6">Level 4 (6x6)</option>
+      <option value="7">Level 5 (7x7)</option>
+    </select>
+    <button onclick="startGame()">🔄 Restart</button>
+  </div>
+
+  <div id="timer">Time: 0.0s</div>
+  <div class="grid" id="grid"></div>
+
+  <div id="scoreBoard">
+    <h3>🏆 Best Times</h3>
+    <div id="scores"></div>
+  </div>
+
+  <script>
+    let current = 1;
+    let startTime, timerInterval;
+    let currentLevel = 5;
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function startGame() {
+      clearInterval(timerInterval);
+      document.getElementById("timer").innerText = "Time: 0.0s";
+      current = 1;
+
+      currentLevel = parseInt(document.getElementById("level").value);
+      const total = currentLevel * currentLevel;
+      const grid = document.getElementById("grid");
+
+      grid.style.gridTemplateColumns = `repeat(${currentLevel}, 60px)`;
+      grid.innerHTML = "";
+
+      let numbers = shuffle([...Array(total).keys()].map(i => i + 1));
+
+      numbers.forEach((num, i) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.textContent = num;
+        cell.style.animationDelay = `${i * 20}ms`;
+        cell.onclick = () => {
+          if (parseInt(cell.textContent) === current) {
+            cell.classList.add("clicked");
+            if (current === 1) startTimer();
+            if (current === total) {
+              stopTimer();
+              saveBestTime(currentLevel);
+            }
+            current++;
+          }
+        };
+        grid.appendChild(cell);
+      });
+
+      updateBestScores();
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        document.getElementById("timer").innerText = `Time: ${elapsed}s`;
+      }, 100);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function saveBestTime(level) {
+      const currentTime = (Date.now() - startTime) / 1000;
+      const key = `bestTime_${level}x${level}`;
+      const best = localStorage.getItem(key);
+
+      if (!best || currentTime < parseFloat(best)) {
+        localStorage.setItem(key, currentTime.toFixed(1));
+        alert("🎉 New Best Time!");
+        updateBestScores();
+      }
+    }
+
+    function updateBestScores() {
+      const scoresDiv = document.getElementById("scores");
+      scoresDiv.innerHTML = "";
+
+      for (let size = 3; size <= 7; size++) {
+        const key = `bestTime_${size}x${size}`;
+        const time = localStorage.getItem(key);
+        const row = document.createElement("div");
+        row.className = "score-row";
+        row.innerHTML = `<span>Level ${size - 2} (${size}x${size})</span><span>${time ? time + 's' : '-'}</span>`;
+        scoresDiv.appendChild(row);
+      }
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
